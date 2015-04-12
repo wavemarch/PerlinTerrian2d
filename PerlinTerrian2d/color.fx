@@ -1,5 +1,5 @@
 
-// simply transform the position to proj space and copy color
+// simply transform the position to proj space and copy color//
 
 cbuffer cbPerObject {
 	float4x4 gWorldViewProj;
