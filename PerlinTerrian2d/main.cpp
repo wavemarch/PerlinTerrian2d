@@ -6,12 +6,40 @@
 
 struct Vertex {
 	XMFLOAT3 pos;
-	XMFLOAT4 color;
+	XMFLOAT3 normal;
 };
 
-inline float Lerp(float a, float b, float t) {
-	return a * (1.0f - t) + b * t;
+inline float tx(float t) {
+	return 6 * t*t*t*t*t - 15 * t*t*t*t + 10 * t*t*t;
 }
+
+inline float tt(float t) {
+	return 3 * t*t - 2 * t*t*t;
+}
+
+inline float Lerp(float a, float b, float t) {
+//	return a * (1.0f - t) + b * t;
+	float pt = tt(t);
+	return a * (1.0f - pt) + b * pt;
+}
+
+inline float Access(float *h, int i, int j, int width) {
+	return h[i*width + j];
+}
+
+struct MyMaterial {
+	XMFLOAT4 ambient;
+	XMFLOAT4 diffuse;
+	XMFLOAT4 specular;
+};
+
+struct MyDirectionalLight {
+	XMFLOAT4 ambient;
+	XMFLOAT4 diffuse;
+	XMFLOAT4 specular;
+	XMFLOAT3 direction;
+	float pad;
+};
 
 class PerlinTerrian2d : public D3DApp {
 public:
@@ -55,11 +83,17 @@ private:
 	ID3DX11Effect *mEffect;
 	ID3DX11EffectTechnique *mTech;
 	ID3DX11EffectMatrixVariable *mWorldViewProj;
+	ID3DX11EffectMatrixVariable *mWorldTransForm; //newly added
+
+	ID3DX11EffectVectorVariable *mEyePos; //newly added
+	ID3DX11EffectVariable *mMaterial; //newly added
+	ID3DX11EffectVariable *mDirecLight; //newly added
 
 	ID3D11InputLayout *mInputLayout;
 
 	XMFLOAT4X4 mWorld;
 	XMFLOAT4X4 mView;
+	XMFLOAT4 selfEyePos; //newly added
 	XMFLOAT4X4 mProj;
 
 	float yawAngleToOzzie;
@@ -70,9 +104,9 @@ private:
 };
 
 PerlinTerrian2d::PerlinTerrian2d(HINSTANCE hInstance) 
-:D3DApp(hInstance), mVertexBuffer(NULL), mIndexBuffer(NULL), mEffect(NULL), mWorldViewProj(NULL), mInputLayout(NULL)
-{
+:D3DApp(hInstance), mVertexBuffer(NULL), mIndexBuffer(NULL), mEffect(NULL), mWorldViewProj(NULL), mEyePos(NULL), mWorldTransForm(NULL), mMaterial(NULL), mDirecLight(NULL), mInputLayout(NULL) {
 	auto identity = XMMatrixIdentity();
+
 	XMStoreFloat4x4(&mWorld, identity);
 	XMStoreFloat4x4(&mView, identity);
 	XMStoreFloat4x4(&mProj, identity);
@@ -145,6 +179,8 @@ void PerlinTerrian2d::UpdateScene(float dt) {
 
 	auto view = XMMatrixLookAtLH(eyePos, target, up);
 	XMStoreFloat4x4(&mView, view);
+
+	XMStoreFloat4(&selfEyePos, eyePos);
 }
 
 void PerlinTerrian2d::DrawScene() {
@@ -154,7 +190,7 @@ void PerlinTerrian2d::DrawScene() {
 	md3dImmediateContext->IASetInputLayout(mInputLayout);
 	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	md3dImmediateContext->RSSetState(mWireFrameState);
+	md3dImmediateContext->RSSetState(mSolidState);
 
 	UINT vStride = sizeof(Vertex);
 	UINT vOffset = 0;
@@ -163,10 +199,27 @@ void PerlinTerrian2d::DrawScene() {
 
 	XMMATRIX world = XMLoadFloat4x4(&mWorld);
 	XMMATRIX view = XMLoadFloat4x4(&mView);
+
 	XMMATRIX proj = XMLoadFloat4x4(&mProj);
 
 	XMMATRIX worldViewProj = world * view * proj;
 	mWorldViewProj->SetMatrix(reinterpret_cast<float*>(&worldViewProj));
+	mWorldTransForm->SetMatrix(reinterpret_cast<float*>(&world));
+	mEyePos->SetFloatVector(reinterpret_cast<float*>(&selfEyePos));
+
+	MyMaterial mt;
+	mt.ambient = XMFLOAT4(0.48f, 0.77f, 0.46f, 1.0f);
+	mt.diffuse = XMFLOAT4(0.48f, 0.77f, 0.46, 1.0f);
+	mt.specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 4.0f);
+	mMaterial->SetRawValue((void*)&mt, 0, sizeof(mt));
+
+	MyDirectionalLight lit;
+	lit.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+	lit.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+	lit.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+	lit.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+	lit.pad = 1.0f;
+	mDirecLight->SetRawValue((void*)&lit, 0, sizeof(lit));
 
 	D3DX11_TECHNIQUE_DESC tDecs;
 	mTech->GetDesc(&tDecs);
@@ -294,21 +347,46 @@ void PerlinTerrian2d::BuildGeometry() {
 	Vertex *pV = vertices;
 	float *pH = height;
 
+	float xfactor = 2.0f;
+	float yfactor = 2.0f;
 	for (int i = 0; i < mapHeight; ++i) {
 		for (int j = 0; j < mapWidth; ++j) {
-			pV->pos.x = j * 2;
-			pV->pos.z = i * 2;
+			pV->pos.x = j * xfactor;
+			pV->pos.z = i * yfactor;
 			pV->pos.y = *pH * 5-200;
 
-			pV->color.x = (float)(rand() % 100) / 500.0f;
-			pV->color.y = (float)(rand() % 100) / 500.0f;
-			pV->color.z = (float)(rand() % 100) / 500.0f;
-			pV->color.w = 1.0f;
-			
 			++pV;
 			++pH;
 		}
 	}
+
+	pV = vertices;
+	for (int i = 0; i < mapHeight; ++i) {
+		for (int j = 0; j < mapWidth; ++j){
+			float h = Access(height, i, j, mapWidth);
+
+			float leftH = j>0 ? Access(height, i, j - 1, mapWidth) : 0;
+			float rightH = j + 1 < mapWidth ? Access(height, i, j + 1, mapWidth) : 0;
+			
+			float upH = i > 0 ? Access(height, i - 1, j, mapWidth) : 0;
+			float downH = i + 1 < mapHeight ? Access(height, i + 1, j, mapWidth) : 0;
+
+			float gx = (rightH - leftH) / (2.0f * xfactor);
+			float gz = (downH - upH) / (2.0f * yfactor);  
+
+			XMFLOAT3 norm(-gx, 1.0f, -gz);
+			XMVECTOR xnorm = XMLoadFloat3(&norm);
+			xnorm = XMVector3Normalize(xnorm);
+			XMStoreFloat3(&norm, xnorm); // need to output a log to see it
+
+			pV->normal.x = norm.x;
+			pV->normal.y = norm.y;
+			pV->normal.z = norm.z;
+
+			++pV;
+		}
+	}
+	
 	pV = NULL;
 	pH = NULL;
 
@@ -393,6 +471,10 @@ void PerlinTerrian2d::BuildEffect() {
 
 	mTech = mEffect->GetTechniqueByName("ColorTech");
 	mWorldViewProj = mEffect->GetVariableByName("gWorldViewProj")->AsMatrix();
+	mWorldTransForm = mEffect->GetVariableByName("gWorld")->AsMatrix();
+	mEyePos = mEffect->GetVariableByName("eyePos")->AsVector();
+	mMaterial = mEffect->GetVariableByName("gMaterial");
+	mDirecLight = mEffect->GetVariableByName("dLight");
 
 	ReleaseCOM(compiledShader);
 }
@@ -400,7 +482,7 @@ void PerlinTerrian2d::BuildEffect() {
 void PerlinTerrian2d::InputAssamble() {
 	D3D11_INPUT_ELEMENT_DESC vertexDecs[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 
 	D3DX11_PASS_DESC pdecs;
