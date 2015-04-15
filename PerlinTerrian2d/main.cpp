@@ -41,6 +41,14 @@ struct MyDirectionalLight {
 	float pad;
 };
 
+struct MyPointLight {
+	XMFLOAT4 ambient;
+	XMFLOAT4 diffuse;
+	XMFLOAT4 specular;
+	XMFLOAT3 pos;
+	float pad;
+};
+
 class PerlinTerrian2d : public D3DApp {
 public:
 	PerlinTerrian2d(HINSTANCE hInstance);
@@ -89,6 +97,9 @@ private:
 	ID3DX11EffectVariable *mMaterial; //newly added
 	ID3DX11EffectVariable *mDirecLight; //newly added
 
+	ID3DX11EffectVariable *mPointLight; //newly added
+	float pointYaw;
+
 	ID3D11InputLayout *mInputLayout;
 
 	XMFLOAT4X4 mWorld;
@@ -104,7 +115,7 @@ private:
 };
 
 PerlinTerrian2d::PerlinTerrian2d(HINSTANCE hInstance) 
-:D3DApp(hInstance), mVertexBuffer(NULL), mIndexBuffer(NULL), mEffect(NULL), mWorldViewProj(NULL), mEyePos(NULL), mWorldTransForm(NULL), mMaterial(NULL), mDirecLight(NULL), mInputLayout(NULL) {
+:D3DApp(hInstance), mVertexBuffer(NULL), mIndexBuffer(NULL), mEffect(NULL), mWorldViewProj(NULL), mEyePos(NULL), mWorldTransForm(NULL), mMaterial(NULL), mDirecLight(NULL), mPointLight(NULL), mInputLayout(NULL) {
 	auto identity = XMMatrixIdentity();
 
 	XMStoreFloat4x4(&mWorld, identity);
@@ -210,7 +221,7 @@ void PerlinTerrian2d::DrawScene() {
 	MyMaterial mt;
 	mt.ambient = XMFLOAT4(0.48f, 0.77f, 0.46f, 1.0f);
 	mt.diffuse = XMFLOAT4(0.48f, 0.77f, 0.46, 1.0f);
-	mt.specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 4.0f);
+	mt.specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 18.0f);
 	mMaterial->SetRawValue((void*)&mt, 0, sizeof(mt));
 
 	MyDirectionalLight lit;
@@ -220,6 +231,21 @@ void PerlinTerrian2d::DrawScene() {
 	lit.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
 	lit.pad = 1.0f;
 	mDirecLight->SetRawValue((void*)&lit, 0, sizeof(lit));
+
+	MyPointLight plit;
+	plit.ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	plit.diffuse = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+	plit.specular = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+
+	pointYaw += 0.3f;
+	if (pointYaw >= 360.0f)
+		pointYaw = 0.0f;
+
+	float pointYawRadius = pointYaw / 360.0 * 2 * XM_PI;
+	float pointRadius = 500.0f;
+	plit.pos = XMFLOAT3(sinf(pointYawRadius) * pointRadius + 700.0f, 0.0f, cosf(pointYawRadius) * pointRadius + 700.0f);
+
+	mPointLight->SetRawValue((void*)&plit, 0, sizeof(plit));
 
 	D3DX11_TECHNIQUE_DESC tDecs;
 	mTech->GetDesc(&tDecs);
@@ -475,6 +501,9 @@ void PerlinTerrian2d::BuildEffect() {
 	mEyePos = mEffect->GetVariableByName("eyePos")->AsVector();
 	mMaterial = mEffect->GetVariableByName("gMaterial");
 	mDirecLight = mEffect->GetVariableByName("dLight");
+
+	mPointLight = mEffect->GetVariableByName("pLight");
+	pointYaw = 0.0f;
 
 	ReleaseCOM(compiledShader);
 }
