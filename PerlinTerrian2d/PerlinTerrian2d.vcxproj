@@ -42,8 +42,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <ExecutablePath>$(DXSDK_DIR)Utilities\bin\x86;$(VC_ExecutablePath_x86);$(WindowsSDK_ExecutablePath);$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(SystemRoot)\SysWow64;$(FxCopDir);$(PATH);</ExecutablePath>
-    <IncludePath>D:\D3D11Intro\d3d11CodeSet1\Common;$(DXSDK_DIR)include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>D:\D3D11Intro\d3d11CodeSet1\Common;$(DXSDK_DIR)lib\x86;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);</LibraryPath>
+    <IncludePath>$(D3DIntroCommon);$(DXSDK_DIR)include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <LibraryPath>$(D3DIntroCommon);$(DXSDK_DIR)lib\x86;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -98,18 +98,18 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="D:\D3D11Intro\d3d11CodeSet1\Common\d3dApp.cpp" />
-    <ClCompile Include="D:\D3D11Intro\d3d11CodeSet1\Common\d3dUtil.cpp" />
-    <ClCompile Include="D:\D3D11Intro\d3d11CodeSet1\Common\GameTimer.cpp" />
-    <ClCompile Include="D:\D3D11Intro\d3d11CodeSet1\Common\MathHelper.cpp" />
+    <ClCompile Include="$(D3DIntroCommon)\d3dApp.cpp" />
+    <ClCompile Include="$(D3DIntroCommon)\d3dUtil.cpp" />
+    <ClCompile Include="$(D3DIntroCommon)\GameTimer.cpp" />
+    <ClCompile Include="$(D3DIntroCommon)\MathHelper.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="D:\D3D11Intro\d3d11CodeSet1\Common\d3dApp.h" />
-    <ClInclude Include="D:\D3D11Intro\d3d11CodeSet1\Common\d3dUtil.h" />
-    <ClInclude Include="D:\D3D11Intro\d3d11CodeSet1\Common\d3dx11effect.h" />
-    <ClInclude Include="D:\D3D11Intro\d3d11CodeSet1\Common\GameTimer.h" />
-    <ClInclude Include="D:\D3D11Intro\d3d11CodeSet1\Common\MathHelper.h" />
+    <ClInclude Include="$(D3DIntroCommon)\d3dApp.h" />
+    <ClInclude Include="$(D3DIntroCommon)\d3dUtil.h" />
+    <ClInclude Include="$(D3DIntroCommon)\d3dx11effect.h" />
+    <ClInclude Include="$(D3DIntroCommon)\GameTimer.h" />
+    <ClInclude Include="$(D3DIntroCommon)\MathHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="color.fx" />
